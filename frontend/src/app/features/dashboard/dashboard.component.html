@@ -1,0 +1,293 @@
+<div
+  class="relative min-h-screen overflow-x-hidden text-apple-text font-sans antialiased"
+  (dragover)="onPageDragOver($event)"
+  (dragleave)="onPageDragLeave($event)"
+  (drop)="onPageDrop($event)"
+>
+  <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-gradient-to-br from-slate-100 via-slate-200/80 to-slate-100" aria-hidden="true">
+    <app-particle-background />
+    <div class="absolute inset-0 bg-white/20 backdrop-blur-[1px]"></div>
+  </div>
+
+  <header class="glass sticky top-0 z-20 w-full border-b border-white/70 animate-fade-up">
+    <div class="flex w-full items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+      <div class="flex min-w-0 items-center gap-2.5">
+        <img
+          src="/logo-header.png"
+          alt="ViaDrop"
+          class="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
+          width="36"
+          height="36"
+        />
+        <h1 class="m-0 truncate text-sm font-semibold tracking-tight sm:text-base">ViaDrop</h1>
+      </div>
+
+      <div class="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-[0.65rem] font-medium text-apple-text transition-colors hover:bg-black/10 sm:px-3 sm:text-xs"
+          (click)="openLibrary()"
+        >
+          <app-icon name="folder" class="h-3.5 w-3.5 text-apple-muted" />
+          <span class="hidden sm:inline">Biblioteca</span>
+          @if (historyCount() > 0) {
+            <span class="rounded-full bg-apple-blue/15 px-1.5 py-0.5 text-[0.65rem] tabular-nums text-apple-blue">{{ historyCount() }}</span>
+          }
+        </button>
+        <span [class]="statusPillClasses()">
+          <span [class]="statusDotClasses()"></span>
+          <span class="hidden sm:inline">{{ statusLabel() }}</span>
+          <span class="sm:hidden">{{ statusLabel() === 'En línea' ? 'On' : statusLabel() === 'Sin internet' ? 'Off' : '…' }}</span>
+        </span>
+        <span class="hidden items-center rounded-full bg-black/5 px-2 py-1 text-[0.65rem] font-medium text-apple-muted md:inline-flex sm:text-xs">
+          {{ truncatedRoomId() }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <div class="relative z-10 mx-auto flex min-h-[calc(100vh-3.25rem)] max-w-3xl flex-col px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
+    @if (isOffline()) {
+      <div class="glass mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm leading-relaxed text-amber-900 animate-fade-up" role="status">
+        <strong class="font-semibold">Modo offline.</strong>
+        ViaDrop sigue abierta: puedes ver tu biblioteca y archivos guardados. Las transferencias en vivo se reanudan cuando vuelva internet y el servidor.
+      </div>
+    } @else if (connectionError()) {
+      <div class="glass mb-4 flex animate-fade-up items-center justify-between gap-4 rounded-2xl border-apple-orange/25 px-4 py-3 text-sm text-amber-900" role="status">
+        <span>{{ connectionError() }}</span>
+        <button type="button" class="shrink-0 text-sm font-medium text-apple-blue hover:underline" (click)="retryConnection()">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    <main class="flex flex-1 flex-col items-center justify-center gap-8 py-6 sm:gap-12 sm:py-10">
+      @if (isDragOver() && !isTransferBusy()) {
+        <div [class]="dropOverlayClasses()" aria-hidden="true">
+          <div class="pointer-events-none absolute inset-4 rounded-[2rem] border-2 border-dashed border-apple-blue/25 animate-spin-slow sm:inset-8 sm:rounded-[2.5rem]"></div>
+          <div class="pointer-events-none absolute inset-4 animate-frame-glow rounded-[2rem] sm:inset-8 sm:rounded-[2.5rem]"></div>
+
+          <div class="relative flex items-center justify-center">
+            <div class="pointer-events-none absolute h-72 w-72 animate-spin-slow">
+              <span class="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-apple-blue/70 shadow-[0_0_10px_rgba(0,113,227,0.5)]"></span>
+              <span class="absolute bottom-0 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-sky-400/60"></span>
+              <span class="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-sky-400/50"></span>
+              <span class="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-apple-blue/60 shadow-[0_0_8px_rgba(0,113,227,0.4)]"></span>
+            </div>
+
+            <div class="pointer-events-none absolute h-52 w-52 rounded-full border-2 border-dashed border-apple-blue/40 animate-spin-slow"></div>
+
+            <div class="pointer-events-none absolute h-44 w-44 rounded-full border-2 border-apple-blue/35 animate-drop-ring-out"></div>
+            <div class="pointer-events-none absolute h-44 w-44 rounded-full border border-apple-blue/25 animate-drop-ring-out-delay-1"></div>
+            <div class="pointer-events-none absolute h-44 w-44 rounded-full border border-apple-blue/15 animate-drop-ring-out-delay-2"></div>
+
+            <div class="glass relative z-10 flex flex-col items-center gap-2 rounded-4xl px-8 py-6 text-center shadow-glass-lg ring-2 ring-apple-blue/20 animate-drop-in">
+              <app-icon name="arrow-down" class="h-8 w-8 text-apple-blue animate-float" />
+              <p class="m-0 text-base font-semibold text-apple-blue">Suelta para compartir</p>
+              <p class="m-0 text-sm text-apple-muted">Elige el destinatario en el radar</p>
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="flex w-full flex-col items-center gap-5 sm:gap-6">
+        <div class="flex flex-col items-center gap-1.5 px-6 text-center animate-fade-up">
+          <h2 class="m-0 text-xl font-semibold tracking-tight text-apple-text sm:text-2xl">
+            Comparte al instante
+          </h2>
+          <p [class]="headlineTaglineClasses()">{{ headlineTagline() }}</p>
+        </div>
+
+      <section
+        [class]="radarClasses()"
+        (drop)="onDrop($event)"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+      >
+        <div class="pointer-events-none absolute inset-[18%] animate-breathe rounded-full bg-apple-blue/10" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-[8%] animate-ripple rounded-full border border-apple-blue/10" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-[18%] animate-ripple-delay-1 rounded-full border border-apple-blue/10" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-[28%] animate-ripple-delay-2 rounded-full border border-apple-blue/10" aria-hidden="true"></div>
+
+        <div class="relative z-10 flex flex-col items-center gap-0.5 pointer-events-none">
+          @if (pendingFile(); as file) {
+            <div class="flex max-w-[11rem] flex-col items-center gap-1.5 animate-drop-in sm:max-w-[13rem]">
+              <app-icon [name]="fileIcon(file)" class="h-8 w-8 text-apple-blue animate-float" />
+              <span class="w-full truncate text-center text-sm font-semibold leading-tight">{{ file.name }}</span>
+              <span class="text-xs text-apple-muted">{{ formatBytes(file.size) }}</span>
+              <span class="mt-1 rounded-full bg-apple-blue/10 px-3 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-apple-blue">
+                Elige destinatario
+              </span>
+            </div>
+          } @else {
+            <span class="text-4xl font-semibold leading-none tracking-tight">{{ peerCount() }}</span>
+            <span class="text-xs lowercase text-apple-muted">{{ peerCount() === 1 ? 'dispositivo' : 'dispositivos' }}</span>
+          }
+        </div>
+
+        @for (peer of peers(); track peer.id; let i = $index) {
+          <button
+            type="button"
+            [class]="peerButtonClasses(selectedPeerId() === peer.id, isChoosingRecipient())"
+            [style.transform]="peerTransform(i, peers().length, selectedPeerId() === peer.id, isChoosingRecipient())"
+            (click)="selectPeer(peer.id)"
+          >
+            <span class="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-apple-blue text-xs font-semibold text-white">
+              {{ peerInitials(peer.displayName) }}
+            </span>
+            <span class="max-w-24 truncate text-xs font-medium">{{ peer.displayName }}</span>
+          </button>
+        }
+      </section>
+
+      @if (radarHint(); as hint) {
+        <p [class]="radarHintClasses()">{{ hint }}</p>
+      }
+      </div>
+
+      <section class="glass mx-auto flex w-full max-w-md animate-fade-up-controls items-center gap-2 rounded-2xl p-1.5 sm:max-w-lg sm:gap-2.5 sm:p-2">
+        <div class="min-w-0 flex-1">
+          @if (isEditingName()) {
+            <input
+              #nameInput
+              class="w-full rounded-xl border border-apple-blue/30 bg-white/80 px-3 py-2 text-sm outline-none ring-2 ring-apple-blue/10"
+              type="text"
+              [value]="displayName()"
+              maxlength="24"
+              autofocus
+              (blur)="commitDisplayName(nameInput.value)"
+              (keydown)="onNameKeydown($event, nameInput)"
+            />
+          } @else {
+            <button
+              type="button"
+              class="flex w-full min-w-0 items-center gap-2 rounded-xl bg-black/5 px-2.5 py-2 text-left transition-colors hover:bg-black/10"
+              (click)="startEditingName()"
+            >
+              <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-apple-blue/10 text-[0.65rem] font-semibold text-apple-blue">
+                {{ peerInitials(displayName()) }}
+              </span>
+              <span class="min-w-0 truncate text-sm font-medium">{{ displayName() }}</span>
+            </button>
+          }
+        </div>
+
+        <input #fileInput type="file" hidden (change)="onFileSelected($event)" />
+
+        @if (pendingFile(); as file) {
+          <button
+            type="button"
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-apple-blue/20 bg-apple-blue/5 px-3 py-2 text-xs font-medium text-apple-blue transition-all duration-300 ease-spring hover:bg-apple-blue/10 sm:text-sm"
+            (click)="cancelPendingFile()"
+          >
+            <app-icon [name]="fileIcon(file)" class="h-3.5 w-3.5" />
+            <span class="max-w-[5.5rem] truncate sm:max-w-[7rem]">{{ file.name }}</span>
+            <app-icon name="close" class="h-3.5 w-3.5 text-apple-muted" />
+          </button>
+        } @else {
+          <button
+            type="button"
+            [class]="sendButtonClasses()"
+            [disabled]="!canPickFile()"
+            (click)="triggerFileInput(fileInput)"
+          >
+            <app-icon name="upload" class="h-3.5 w-3.5" />
+            Archivo
+          </button>
+        }
+      </section>
+    </main>
+
+    @if (showTransferSheet() && activeTransfer(); as transfer) {
+      <aside [class]="transferSheetClasses(transfer)">
+        <div class="flex items-start gap-3">
+          <div [class]="transferIconClasses(transfer)">
+            @if (transfer.status === 'completed') {
+              <app-icon name="check" class="h-4 w-4" />
+            } @else if (transfer.status === 'error') {
+              <app-icon name="alert" class="h-4 w-4" />
+            } @else {
+              <app-icon name="upload" class="h-4 w-4" />
+            }
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <p class="m-0 truncate text-sm font-semibold">{{ transfer.fileName }}</p>
+            <p class="m-0 mt-0.5 text-xs text-apple-muted">
+              {{ transferStatusLabel(transfer) }}
+              @if (transfer.direction === 'outgoing') { · hacia {{ transfer.peerName }} }
+              @else { · de {{ transfer.peerName }} }
+            </p>
+          </div>
+
+          @if (transfer.status === 'completed' || transfer.status === 'error') {
+            <button
+              type="button"
+              class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/5 text-apple-muted hover:bg-black/10"
+              (click)="clearTransfer()"
+              aria-label="Cerrar"
+            >
+              <app-icon name="close" class="h-4 w-4" />
+            </button>
+          }
+        </div>
+
+        <div class="mt-3.5 h-1 overflow-hidden rounded-full bg-black/5">
+          <div
+            [class]="progressBarClasses(transfer)"
+            [style.width.%]="transfer.progress"
+          ></div>
+        </div>
+
+        <p class="m-0 mt-2 text-xs tabular-nums text-apple-muted">
+          {{ transfer.progress }}% · {{ formatBytes(transfer.bytesTransferred) }} / {{ formatBytes(transfer.fileSize) }}
+        </p>
+
+        @if (transfer.status === 'error' && transfer.errorMessage) {
+          <p class="m-0 mt-2 text-sm text-apple-red">{{ transfer.errorMessage }}</p>
+          <button type="button" class="mt-1 text-sm font-medium text-apple-blue hover:underline" (click)="retryTransfer()">
+            Reintentar
+          </button>
+        }
+      </aside>
+    }
+
+    <app-file-preview-modal />
+    <app-transfer-library [open]="isLibraryOpen()" (closed)="closeLibrary()" />
+
+    @if (showInstallBanner()) {
+      <aside class="glass fixed bottom-5 left-1/2 z-30 w-[min(92vw,420px)] -translate-x-1/2 rounded-4xl px-4 py-4 animate-fade-up shadow-glass-lg">
+        <div class="flex items-start gap-3">
+          <img src="/logo-header.png" alt="" class="h-10 w-10 shrink-0 object-contain" width="40" height="40" />
+          <div class="min-w-0 flex-1">
+            <p class="m-0 text-sm font-semibold">Instalar ViaDrop</p>
+            <p class="m-0 mt-1 text-xs leading-relaxed text-apple-muted">
+              Acceso rápido desde tu pantalla de inicio y uso offline de la app y biblioteca.
+            </p>
+          </div>
+          <button type="button" class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-black/5 text-apple-muted hover:bg-black/10" (click)="dismissInstallBanner()" aria-label="Cerrar">
+            <app-icon name="close" class="h-4 w-4" />
+          </button>
+        </div>
+        <button type="button" class="mt-3 w-full rounded-full bg-apple-blue py-2.5 text-sm font-medium text-white shadow-send-btn hover:-translate-y-px active:scale-95" (click)="installPwa()">
+          Instalar app
+        </button>
+      </aside>
+    }
+
+    <div class="pointer-events-none fixed top-14 left-1/2 z-30 flex w-toast -translate-x-1/2 flex-col gap-2 sm:top-16" aria-live="polite">
+      @for (toast of toastStack(); track toast.id) {
+        <div [class]="toastClasses(toast.tone)" (click)="dismissToast(toast.id)">
+          {{ toast.message }}
+        </div>
+      }
+    </div>
+
+    <footer class="mt-auto pt-10 text-center text-xs text-apple-muted animate-fade-in-delayed">
+      Hecho por
+      <a href="https://www.estebanjara.com/" target="_blank" rel="noopener noreferrer" class="ml-1 font-medium text-apple-blue hover:underline">
+        Esteban Jara
+      </a>
+    </footer>
+  </div>
+</div>

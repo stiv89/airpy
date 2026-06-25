@@ -1,0 +1,110 @@
+@if (preview(); as file) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="'Vista previa de ' + file.fileName"
+  >
+    <button
+      type="button"
+      class="absolute inset-0 bg-black/30 backdrop-blur-sm animate-fade-in"
+      (click)="dismiss()"
+      aria-label="Cerrar vista previa"
+    ></button>
+
+    <div class="glass relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-4xl animate-fade-up">
+      <div class="flex items-start gap-3 border-b border-black/5 px-5 py-4">
+        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-apple-blue/10 text-sm font-bold text-apple-blue">
+          {{ fileExtension(file.fileName) }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <h2 class="m-0 truncate text-base font-semibold">{{ file.fileName }}</h2>
+          <p class="m-0 mt-0.5 text-xs text-apple-muted">
+            De {{ file.peerName }} · {{ formatBytes(file.fileSize) }}
+          </p>
+          <p class="m-0 mt-1 text-xs text-apple-blue">
+            📍 Guardado en la biblioteca de este navegador
+          </p>
+        </div>
+        <button
+          type="button"
+          class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/5 text-lg leading-none text-apple-muted hover:bg-black/10"
+          (click)="dismiss()"
+          aria-label="Cerrar"
+        >×</button>
+      </div>
+
+      <div class="flex min-h-48 flex-1 items-center justify-center overflow-auto bg-black/[0.02] p-4">
+        @switch (file.previewKind) {
+          @case ('image') {
+            <img
+              [src]="file.blobUrl"
+              [alt]="file.fileName"
+              class="max-h-80 max-w-full rounded-2xl object-contain shadow-lg"
+            />
+          }
+          @case ('video') {
+            <video
+              [src]="file.blobUrl"
+              controls
+              class="max-h-80 max-w-full rounded-2xl bg-black shadow-lg"
+            ></video>
+          }
+          @case ('audio') {
+            <div class="flex w-full flex-col items-center gap-4 py-6">
+              <div class="grid h-20 w-20 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-apple-blue text-3xl text-white">
+                ♪
+              </div>
+              <audio [src]="file.blobUrl" controls class="w-full max-w-sm"></audio>
+            </div>
+          }
+          @case ('pdf') {
+            <iframe
+              [src]="file.blobUrl"
+              [title]="file.fileName"
+              class="h-80 w-full rounded-2xl border border-black/5 bg-white"
+            ></iframe>
+          }
+          @case ('text') {
+            @if (file.textContent !== null) {
+              <pre class="m-0 max-h-80 w-full overflow-auto rounded-2xl bg-white/80 p-4 text-left text-xs leading-relaxed text-apple-text shadow-inner">{{ file.textContent }}</pre>
+            } @else if (file.fileSize > 512000) {
+              <p class="max-w-xs text-center text-sm text-apple-muted">
+                El archivo de texto es muy grande para previsualizarlo. Usa Descargar para guardarlo.
+              </p>
+            } @else {
+              <p class="text-sm text-apple-muted animate-pulse">Cargando vista previa…</p>
+            }
+          }
+          @default {
+            <div class="flex flex-col items-center gap-3 py-8 text-center">
+              <div class="grid h-24 w-24 place-items-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 text-2xl font-bold text-slate-500">
+                {{ fileExtension(file.fileName) }}
+              </div>
+              <p class="m-0 max-w-xs text-sm text-apple-muted">
+                Vista previa no disponible para este tipo de archivo. Puedes descargarlo cuando quieras.
+              </p>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="flex gap-2 border-t border-black/5 p-4">
+        <button
+          type="button"
+          class="flex-1 rounded-full bg-black/5 px-4 py-3 text-sm font-medium text-apple-text transition-colors hover:bg-black/10"
+          (click)="dismiss()"
+        >
+          Cerrar
+        </button>
+        <button
+          type="button"
+          class="flex-1 rounded-full bg-apple-blue px-4 py-3 text-sm font-medium text-white shadow-send-btn transition-all hover:-translate-y-px hover:shadow-send-btn-hover active:scale-95"
+          (click)="download()"
+        >
+          Descargar
+        </button>
+      </div>
+    </div>
+  </div>
+}

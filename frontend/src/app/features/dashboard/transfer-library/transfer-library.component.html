@@ -1,0 +1,222 @@
+@if (open()) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Biblioteca ViaDrop"
+  >
+    <button
+      type="button"
+      class="absolute inset-0 bg-black/30 backdrop-blur-md animate-fade-in"
+      (click)="close()"
+      aria-label="Cerrar biblioteca"
+    ></button>
+
+    <div
+      class="relative z-10 flex h-[min(85vh,580px)] w-[min(94vw,860px)] flex-col overflow-hidden rounded-xl border border-black/10 bg-[#f5f5f7] shadow-[0_24px_80px_rgba(0,0,0,0.22)] animate-drop-in"
+    >
+      <!-- Title bar -->
+      <header class="flex shrink-0 items-center gap-3 border-b border-black/[0.08] bg-[#ebebed] px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="h-3 w-3 rounded-full bg-[#ff5f57] transition-opacity hover:opacity-80"
+            (click)="close()"
+            aria-label="Cerrar"
+          ></button>
+          <span class="h-3 w-3 rounded-full bg-[#febc2e]" aria-hidden="true"></span>
+          <span class="h-3 w-3 rounded-full bg-[#28c840]" aria-hidden="true"></span>
+        </div>
+
+        <div class="flex min-w-0 flex-1 items-center justify-center gap-2">
+          <app-icon name="folder" class="h-4 w-4 text-apple-muted" />
+          <h2 class="m-0 truncate text-sm font-semibold text-apple-text">{{ filterTitle() }}</h2>
+        </div>
+
+        <div class="w-[52px]" aria-hidden="true"></div>
+      </header>
+
+      <div class="flex min-h-0 flex-1">
+        <!-- Sidebar -->
+        <aside class="flex w-[168px] shrink-0 flex-col border-r border-black/[0.06] bg-[#ececee] px-2 py-3 sm:w-[190px]">
+          <p class="m-0 px-2.5 pb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-apple-muted">
+            Favoritos
+          </p>
+
+          <nav class="flex flex-col gap-0.5">
+            @for (item of sidebarItems; track item.id) {
+              <button
+                type="button"
+                [class]="sidebarItemClasses(filter() === item.id)"
+                (click)="setFilter(item.id)"
+              >
+                <app-icon [name]="item.icon" class="h-4 w-4 shrink-0 opacity-70" />
+                <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+                <span class="tabular-nums text-[0.7rem] opacity-60">{{ item.count() }}</span>
+              </button>
+            }
+          </nav>
+
+          <div class="mt-auto px-2.5 pt-4">
+            <p class="m-0 text-[0.65rem] leading-relaxed text-apple-muted">
+              Almacenamiento local
+            </p>
+            <p class="m-0 mt-0.5 text-xs font-medium text-apple-text">{{ librarySizeLabel() }}</p>
+          </div>
+        </aside>
+
+        <!-- Main panel -->
+        <div class="flex min-w-0 flex-1 flex-col bg-white">
+          <!-- Toolbar -->
+          <div class="flex shrink-0 items-center gap-3 border-b border-black/[0.06] px-4 py-2.5">
+            <p class="m-0 text-xs text-apple-muted">
+              {{ displayRecords().length }} {{ displayRecords().length === 1 ? 'elemento' : 'elementos' }}
+            </p>
+
+            <div class="relative ml-auto w-full max-w-[220px]">
+              <app-icon
+                name="search"
+                class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-apple-muted"
+              />
+              <input
+                type="search"
+                class="w-full rounded-lg border border-black/[0.08] bg-[#f5f5f7] py-1.5 pl-8 pr-3 text-xs outline-none ring-apple-blue/20 placeholder:text-apple-muted focus:border-apple-blue/30 focus:ring-2"
+                placeholder="Buscar"
+                [value]="searchQuery()"
+                (input)="searchQuery.set($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <!-- Column headers -->
+          <div
+            class="hidden shrink-0 grid-cols-[auto_minmax(0,2fr)_minmax(0,1fr)_auto_auto] gap-4 border-b border-black/[0.06] bg-[#fafafa] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-wide text-apple-muted sm:grid"
+          >
+            <span class="w-8"></span>
+            <span>Nombre</span>
+            <span>Contacto</span>
+            <span class="w-16 text-right">Tamaño</span>
+            <span class="w-28 text-right">Fecha</span>
+          </div>
+
+          <!-- File list -->
+          <div class="min-h-0 flex-1 overflow-y-auto">
+            @if (isLoading()) {
+              <p class="py-16 text-center text-sm text-apple-muted animate-pulse">Cargando biblioteca…</p>
+            } @else if (displayRecords().length === 0) {
+              <div class="flex h-full flex-col items-center justify-center gap-3 px-8 py-16 text-center">
+                <div class="grid h-16 w-16 place-items-center rounded-2xl bg-[#f0f0f2]">
+                  <app-icon name="folder" class="h-8 w-8 text-apple-muted/60" />
+                </div>
+                <div>
+                  <p class="m-0 text-base font-semibold text-apple-text">Sin archivos</p>
+                  <p class="m-0 mt-1 max-w-xs text-sm leading-relaxed text-apple-muted">
+                    @if (searchQuery()) {
+                      No hay resultados para tu búsqueda.
+                    } @else if (filter() === 'incoming') {
+                      Los archivos recibidos aparecerán aquí.
+                    } @else if (filter() === 'outgoing') {
+                      El historial de envíos aparecerá aquí.
+                    } @else {
+                      Tus transferencias se guardan en el almacenamiento local del navegador.
+                    }
+                  </p>
+                </div>
+              </div>
+            } @else {
+              <ul class="m-0 list-none p-0">
+                @for (item of displayRecords(); track item.id) {
+                  <li
+                    [class]="listRowClasses(selectedId() === item.id)"
+                    (click)="selectRecord(item.id)"
+                    (dblclick)="viewRecord(item)"
+                  >
+                    <div [class]="fileIconBoxClasses(item, selectedId() === item.id)">
+                      <app-icon [name]="fileIcon(item)" class="h-4 w-4" />
+                    </div>
+
+                    <div class="min-w-0">
+                      <p class="m-0 truncate font-medium">{{ item.fileName }}</p>
+                      <p class="m-0 mt-0.5 truncate text-xs sm:hidden" [class]="listMetaClasses(selectedId() === item.id)">
+                        {{ directionLabel(item) }} · {{ item.peerName }}
+                      </p>
+                    </div>
+
+                    <span class="hidden truncate sm:block" [class]="listMetaClasses(selectedId() === item.id)">
+                      {{ item.peerName }}
+                    </span>
+
+                    <span class="hidden text-right tabular-nums sm:block" [class]="listMetaClasses(selectedId() === item.id)">
+                      {{ formatBytes(item.fileSize) }}
+                    </span>
+
+                    <span class="hidden text-right tabular-nums sm:block" [class]="listMetaClasses(selectedId() === item.id)">
+                      {{ formatDate(item.createdAt) }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <!-- Detail / action bar -->
+          @if (selectedRecord(); as item) {
+            <footer class="shrink-0 border-t border-black/[0.06] bg-[#fafafa] px-4 py-3">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="m-0 truncate text-sm font-medium">{{ item.fileName }}</p>
+                  <p class="m-0 mt-0.5 truncate text-xs text-apple-muted">
+                    {{ directionLabel(item) }} · {{ item.peerName }} · {{ formatBytes(item.fileSize) }}
+                    · {{ item.storageLabel }}
+                  </p>
+                </div>
+
+                <div class="flex shrink-0 items-center gap-1.5">
+                  @if (item.direction === 'incoming' && item.hasLocalCopy) {
+                    <button
+                      type="button"
+                      class="rounded-md bg-black/[0.06] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-black/10"
+                      (click)="$event.stopPropagation(); viewRecord(item)"
+                    >
+                      Ver
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-md bg-apple-blue px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#0077ED]"
+                      (click)="$event.stopPropagation(); downloadRecord(item)"
+                    >
+                      <app-icon name="download" class="h-3.5 w-3.5" />
+                      Descargar
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                    (click)="$event.stopPropagation(); deleteRecord(item.id)"
+                  >
+                    <app-icon name="trash" class="h-3.5 w-3.5" />
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </footer>
+          } @else if (records().length > 0) {
+            <footer class="flex shrink-0 items-center justify-between border-t border-black/[0.06] bg-[#fafafa] px-4 py-2.5">
+              <p class="m-0 text-xs text-apple-muted">
+                Doble clic para previsualizar · IndexedDB en este navegador
+              </p>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                (click)="clearAll()"
+              >
+                <app-icon name="trash" class="h-3.5 w-3.5" />
+                Vaciar
+              </button>
+            </footer>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
