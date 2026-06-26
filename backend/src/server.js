@@ -14,23 +14,39 @@ function parseOrigins(value) {
 }
 
 const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGIN);
+const ALLOW_VERCEL = process.env.ALLOW_VERCEL !== 'false';
 
 function isOriginAllowed(origin) {
   if (!origin) return true;
-  return CLIENT_ORIGINS.includes(origin);
+
+  if (CLIENT_ORIGINS.includes(origin)) return true;
+
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    if (ALLOW_VERCEL && hostname.endsWith('.vercel.app')) return true;
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+function corsOriginCallback(origin, callback) {
+  if (isOriginAllowed(origin)) {
+    callback(null, true);
+    return;
+  }
+  console.warn(`CORS blocked for origin: ${origin}`);
+  callback(null, false);
 }
 
 const app = express();
 app.set('trust proxy', 1);
 app.use(
   cors({
-    origin(origin, callback) {
-      if (isOriginAllowed(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
+    origin: corsOriginCallback,
   }),
 );
 app.use(express.json());
@@ -43,7 +59,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CLIENT_ORIGINS,
+    origin: corsOriginCallback,
     methods: ['GET', 'POST'],
   },
   transports: ['polling', 'websocket'],

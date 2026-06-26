@@ -69,9 +69,18 @@ export class SocketService {
       return;
     }
 
+    void this.openSocket();
+  }
+
+  private async openSocket(): Promise<void> {
     this.teardownSocket();
     this.connectionStatus.set('connecting');
     this.connectionError.set(null);
+
+    if (environment.production) {
+      this.connectionError.set('Despertando servidor… (plan gratis, puede tardar ~1 min)');
+      await this.wakeSignalingServer();
+    }
 
     this.socket = io(environment.signalingUrl, {
       query: { displayName: this.lastDisplayName },
@@ -80,8 +89,14 @@ export class SocketService {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1200,
       reconnectionDelayMax: 8000,
-      timeout: 20000,
+      timeout: 60000,
     });
+
+    this.bindSocketEvents();
+  }
+
+  private bindSocketEvents(): void {
+    if (!this.socket) return;
 
     this.socket.on('connect', () => {
       const wasReconnecting = this.connectionStatus() === 'reconnecting';
@@ -114,7 +129,7 @@ export class SocketService {
       }
 
       this.connectionStatus.set('reconnecting');
-      this.connectionError.set('Servidor no disponible. Reintentando…');
+      this.connectionError.set('Servidor no disponible. Reintentando… (el plan gratis puede tardar ~1 min)');
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -173,6 +188,26 @@ export class SocketService {
     this.socket.on('webrtc-ice-candidate', (payload: WebRtcIceCandidatePayload) => {
       this.iceCandidateHandlers.forEach((handler) => handler(payload));
     });
+  }
+
+  private async wakeSignalingServer(): Promise<void> {
+    const deadline = Date.now() + 90_000;
+
+    while (Date.now() < deadline) {
+      if (this.manualDisconnect || this.connectivity.isOffline()) return;
+
+      try {
+        const response = await fetch(`${environment.signalingUrl}/health`, {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (response.ok) return;
+      } catch {
+        // Render free tier puede responder 504 mientras despierta
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
   }
 
   retryConnection(): void {
