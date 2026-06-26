@@ -36,7 +36,7 @@ module.exports = {
         'send-btn-hover': '0 8px 24px rgba(0,113,227,0.4)',
       },
       width: {
-        radar: 'min(82vw, 380px)',
+        radar: 'min(72vw, 32vh, 320px)',
         sheet: 'min(92vw, 420px)',
         toast: 'min(92vw, 380px)',
       },

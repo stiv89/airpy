@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  signalingUrl: 'https://your-signaling-server.example.com',
+  signalingUrl: 'https://your-api.onrender.com',
 };

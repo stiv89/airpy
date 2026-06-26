@@ -75,12 +75,12 @@ export class SocketService {
 
     this.socket = io(environment.signalingUrl, {
       query: { displayName: this.lastDisplayName },
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1200,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
+      reconnectionDelayMax: 8000,
+      timeout: 20000,
     });
 
     this.socket.on('connect', () => {

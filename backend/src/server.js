@@ -5,11 +5,34 @@ import cors from 'cors';
 import { Server } from 'socket.io';
 
 const PORT = Number(process.env.PORT ?? 3000);
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:4200';
+
+function parseOrigins(value) {
+  return (value ?? 'http://localhost:4200')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGIN);
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  return CLIENT_ORIGINS.includes(origin);
+}
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(cors({ origin: CLIENT_ORIGIN }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+  }),
+);
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
@@ -20,9 +43,12 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CLIENT_ORIGIN,
+    origin: CLIENT_ORIGINS,
     methods: ['GET', 'POST'],
   },
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
 });
 
 /** @type {Map<string, Map<string, { id: string; displayName: string }>>} */

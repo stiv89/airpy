@@ -5,7 +5,11 @@
 @layer base {
   html,
   body {
-    @apply h-full m-0 antialiased font-sans text-apple-text bg-apple-bg;
+    @apply m-0 h-dvh overflow-hidden antialiased font-sans text-apple-text bg-apple-bg;
+  }
+
+  app-root {
+    @apply block h-dvh overflow-hidden;
   }
 
   button {

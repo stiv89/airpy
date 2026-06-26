@@ -1,5 +1,5 @@
 <div
-  class="relative min-h-screen overflow-x-hidden text-apple-text font-sans antialiased"
+  class="relative flex h-dvh flex-col overflow-hidden text-apple-text font-sans antialiased"
   (dragover)="onPageDragOver($event)"
   (dragleave)="onPageDragLeave($event)"
   (drop)="onPageDrop($event)"
@@ -9,7 +9,7 @@
     <div class="absolute inset-0 bg-white/20 backdrop-blur-[1px]"></div>
   </div>
 
-  <header class="glass sticky top-0 z-20 w-full border-b border-white/70 animate-fade-up">
+  <header class="glass fixed inset-x-0 top-0 z-20 shrink-0 border-b border-white/70 animate-fade-up">
     <div class="flex w-full items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
       <div class="flex min-w-0 items-center gap-2.5">
         <img
@@ -39,29 +39,31 @@
           <span class="hidden sm:inline">{{ statusLabel() }}</span>
           <span class="sm:hidden">{{ statusLabel() === 'En línea' ? 'On' : statusLabel() === 'Sin internet' ? 'Off' : '…' }}</span>
         </span>
-        <span class="hidden items-center rounded-full bg-black/5 px-2 py-1 text-[0.65rem] font-medium text-apple-muted md:inline-flex sm:text-xs">
-          {{ truncatedRoomId() }}
-        </span>
+        @if (showRoomId) {
+          <span class="hidden items-center rounded-full bg-black/5 px-2 py-1 text-[0.65rem] font-medium text-apple-muted md:inline-flex sm:text-xs">
+            {{ truncatedRoomId() }}
+          </span>
+        }
       </div>
     </div>
   </header>
 
-  <div class="relative z-10 mx-auto flex min-h-[calc(100vh-3.25rem)] max-w-3xl flex-col px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
+  <div class="relative z-10 mx-auto flex min-h-0 flex-1 w-full max-w-3xl flex-col overflow-hidden px-4 pt-[3.25rem] sm:px-6">
     @if (isOffline()) {
-      <div class="glass mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm leading-relaxed text-amber-900 animate-fade-up" role="status">
+      <div class="glass mb-2 shrink-0 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-2 text-xs leading-snug text-amber-900" role="status">
         <strong class="font-semibold">Modo offline.</strong>
-        ViaDrop sigue abierta: puedes ver tu biblioteca y archivos guardados. Las transferencias en vivo se reanudan cuando vuelva internet y el servidor.
+        Biblioteca disponible; transferencias en vivo al volver la conexión.
       </div>
     } @else if (connectionError()) {
-      <div class="glass mb-4 flex animate-fade-up items-center justify-between gap-4 rounded-2xl border-apple-orange/25 px-4 py-3 text-sm text-amber-900" role="status">
-        <span>{{ connectionError() }}</span>
-        <button type="button" class="shrink-0 text-sm font-medium text-apple-blue hover:underline" (click)="retryConnection()">
+      <div class="glass mb-2 flex shrink-0 items-center justify-between gap-3 rounded-xl border-apple-orange/25 px-3 py-2 text-xs text-amber-900" role="status">
+        <span class="min-w-0 truncate">{{ connectionError() }}</span>
+        <button type="button" class="shrink-0 text-xs font-medium text-apple-blue hover:underline" (click)="retryConnection()">
           Reintentar
         </button>
       </div>
     }
 
-    <main class="flex flex-1 flex-col items-center justify-center gap-8 py-6 sm:gap-12 sm:py-10">
+    <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
       @if (isDragOver() && !isTransferBusy()) {
         <div [class]="dropOverlayClasses()" aria-hidden="true">
           <div class="pointer-events-none absolute inset-4 rounded-[2rem] border-2 border-dashed border-apple-blue/25 animate-spin-slow sm:inset-8 sm:rounded-[2.5rem]"></div>
@@ -90,14 +92,15 @@
         </div>
       }
 
-      <div class="flex w-full flex-col items-center gap-5 sm:gap-6">
-        <div class="flex flex-col items-center gap-1.5 px-6 text-center animate-fade-up">
-          <h2 class="m-0 text-xl font-semibold tracking-tight text-apple-text sm:text-2xl">
+      <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-1 sm:gap-3">
+        <div class="shrink-0 px-4 text-center animate-fade-up">
+          <h2 class="m-0 text-lg font-semibold tracking-tight text-apple-text sm:text-xl">
             Comparte al instante
           </h2>
           <p [class]="headlineTaglineClasses()">{{ headlineTagline() }}</p>
         </div>
 
+        <div class="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2">
       <section
         [class]="radarClasses()"
         (drop)="onDrop($event)"
@@ -143,9 +146,10 @@
       @if (radarHint(); as hint) {
         <p [class]="radarHintClasses()">{{ hint }}</p>
       }
+        </div>
       </div>
 
-      <section class="glass mx-auto flex w-full max-w-md animate-fade-up-controls items-center gap-2 rounded-2xl p-1.5 sm:max-w-lg sm:gap-2.5 sm:p-2">
+      <section class="glass mx-auto flex w-full max-w-md shrink-0 animate-fade-up-controls items-center gap-2 rounded-2xl p-1.5 sm:max-w-lg sm:gap-2.5 sm:p-2">
         <div class="min-w-0 flex-1">
           @if (isEditingName()) {
             <input
@@ -196,6 +200,13 @@
           </button>
         }
       </section>
+
+      <footer class="shrink-0 py-2 text-center text-[0.65rem] text-apple-muted sm:text-xs">
+        Hecho por
+        <a href="https://www.estebanjara.com/" target="_blank" rel="noopener noreferrer" class="ml-1 font-medium text-apple-blue hover:underline">
+          Esteban Jara
+        </a>
+      </footer>
     </main>
 
     @if (showTransferSheet() && activeTransfer(); as transfer) {
@@ -282,12 +293,5 @@
         </div>
       }
     </div>
-
-    <footer class="mt-auto pt-10 text-center text-xs text-apple-muted animate-fade-in-delayed">
-      Hecho por
-      <a href="https://www.estebanjara.com/" target="_blank" rel="noopener noreferrer" class="ml-1 font-medium text-apple-blue hover:underline">
-        Esteban Jara
-      </a>
-    </footer>
   </div>
 </div>

@@ -21,6 +21,7 @@ import { ConnectivityService } from '../../core/services/connectivity.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { ParticleBackgroundComponent } from './particle-background/particle-background.component';
 import { IconComponent, AppIconName } from '../../shared/components/icon/icon.component';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -30,6 +31,8 @@ import { IconComponent, AppIconName } from '../../shared/components/icon/icon.co
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+  readonly showRoomId = !environment.production;
+
   private readonly socket = inject(SocketService);
   private readonly webrtc = inject(WebRtcService);
   private readonly notifications = inject(NotificationService);
@@ -330,7 +333,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   peerTransform(index: number, total: number, selected: boolean, choosing: boolean): string {
     const angle = (360 / total) * index;
-    const radius = window.innerWidth < 520 ? 140 : Math.min(window.innerWidth * 0.36, 168);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const radius = Math.min(
+      vw < 520 ? 108 : Math.min(vw * 0.3, 140),
+      vh * 0.19,
+    );
     const scale = choosing ? 1.08 : selected ? 1.06 : 1;
     return `translate(-50%, -50%) rotate(${angle}deg) translateY(-${radius}px) rotate(-${angle}deg) scale(${scale})`;
   }
@@ -362,7 +370,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   radarHintClasses(): string {
-    const base = 'm-0 max-w-xs px-4 text-center text-sm leading-relaxed animate-fade-in';
+    const base = 'm-0 max-w-xs shrink-0 px-2 text-center text-xs leading-snug animate-fade-in sm:text-sm';
     if (this.pendingFile() && this.peerCount() > 0) return `${base} font-medium text-apple-blue`;
     if (this.selectedPeer()) return `${base} text-apple-muted`;
     return `${base} text-apple-muted`;
@@ -529,7 +537,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   headlineTaglineClasses(): string {
     const base =
-      'm-0 min-h-[1.5rem] text-sm font-medium transition-opacity duration-300 sm:text-base';
+      'm-0 min-h-[1.25rem] text-xs font-medium transition-opacity duration-300 sm:text-sm';
     if (this.taglineVisible()) return `${base} text-apple-blue opacity-100 animate-tagline-in`;
     return `${base} text-apple-blue opacity-0`;
   }
