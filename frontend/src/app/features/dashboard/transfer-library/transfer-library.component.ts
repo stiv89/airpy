@@ -13,10 +13,9 @@ import { TransferHistoryService } from '../../../core/services/transfer-history.
 import { WebRtcService } from '../../../core/services/webrtc.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { HistoryFilter, TransferHistoryRecord } from '../../../core/models/transfer-history.model';
-import { getFileExtension } from '../../../core/utils/file-preview.util';
 import { AppIconName, IconComponent } from '../../../shared/components/icon/icon.component';
 
-interface SidebarItem {
+interface FilterTab {
   id: HistoryFilter;
   label: string;
   icon: AppIconName;
@@ -41,17 +40,15 @@ export class TransferLibraryComponent {
   readonly records = this.history.filteredRecords;
   readonly isLoading = this.history.isLoading;
   readonly filter = this.history.filter;
-  readonly incomingCount = this.history.incomingCount;
-  readonly outgoingCount = this.history.outgoingCount;
   readonly librarySizeLabel = this.history.librarySizeLabel;
 
   readonly searchQuery = signal('');
   readonly selectedId = signal<string | null>(null);
 
-  readonly sidebarItems: SidebarItem[] = [
+  readonly filterTabs: FilterTab[] = [
     { id: 'all', label: 'Todos', icon: 'folder', count: () => this.history.records().length },
-    { id: 'incoming', label: 'Recibidos', icon: 'inbox', count: () => this.incomingCount() },
-    { id: 'outgoing', label: 'Enviados', icon: 'upload', count: () => this.outgoingCount() },
+    { id: 'incoming', label: 'Recibidos', icon: 'inbox', count: () => this.history.incomingCount() },
+    { id: 'outgoing', label: 'Enviados', icon: 'upload', count: () => this.history.outgoingCount() },
   ];
 
   readonly displayRecords = computed(() => {
@@ -69,17 +66,6 @@ export class TransferLibraryComponent {
   readonly selectedRecord = computed(
     () => this.displayRecords().find((r) => r.id === this.selectedId()) ?? null,
   );
-
-  readonly filterTitle = computed(() => {
-    switch (this.filter()) {
-      case 'incoming':
-        return 'Recibidos';
-      case 'outgoing':
-        return 'Enviados';
-      default:
-        return 'Biblioteca';
-    }
-  });
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
@@ -103,10 +89,6 @@ export class TransferLibraryComponent {
     this.selectedId.set(this.selectedId() === id ? null : id);
   }
 
-  fileExtension(fileName: string): string {
-    return getFileExtension(fileName);
-  }
-
   fileIcon(record: TransferHistoryRecord): AppIconName {
     const type = record.mimeType;
     if (type.startsWith('image/')) return 'image';
@@ -128,27 +110,31 @@ export class TransferLibraryComponent {
     return record.direction === 'incoming' ? 'Recibido' : 'Enviado';
   }
 
-  sidebarItemClasses(active: boolean): string {
+  filterChipClasses(active: boolean): string {
     const base =
-      'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[0.8125rem] transition-colors';
+      'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200 sm:text-sm';
     return active
-      ? `${base} bg-apple-blue/12 font-medium text-apple-blue`
-      : `${base} text-apple-text hover:bg-black/[0.04]`;
+      ? `${base} bg-apple-blue text-white shadow-send-btn`
+      : `${base} bg-black/5 text-apple-text hover:bg-black/10`;
   }
 
-  listRowClasses(selected: boolean): string {
+  desktopCardClasses(selected: boolean): string {
     const base =
-      'group grid cursor-default grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-black/[0.04] px-3 py-2 text-sm transition-colors sm:grid-cols-[auto_minmax(0,2fr)_minmax(0,1fr)_auto_auto] sm:gap-4 sm:px-4';
-    return selected ? `${base} bg-apple-blue text-white` : `${base} hover:bg-apple-blue/8`;
+      'flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-all duration-200 sm:p-3.5';
+    return selected
+      ? `${base} border-apple-blue/30 bg-apple-blue/8 ring-2 ring-apple-blue/15`
+      : `${base} border-black/5 bg-white/50 hover:border-apple-blue/20 hover:bg-white/80`;
   }
 
-  listMetaClasses(selected: boolean): string {
-    return selected ? 'text-white/75' : 'text-apple-muted';
+  mobileRowClasses(selected: boolean): string {
+    const base =
+      'flex w-full items-center gap-3 border-b border-black/[0.05] px-4 py-3.5 text-left transition-colors active:bg-black/[0.03]';
+    return selected ? `${base} bg-apple-blue/8` : base;
   }
 
   fileIconBoxClasses(record: TransferHistoryRecord, selected: boolean): string {
-    const base = 'grid h-8 w-8 shrink-0 place-items-center rounded-lg';
-    if (selected) return `${base} bg-white/20 text-white`;
+    const base = 'grid h-11 w-11 shrink-0 place-items-center rounded-2xl sm:h-10 sm:w-10 sm:rounded-xl';
+    if (selected) return `${base} bg-apple-blue/15 text-apple-blue`;
     return record.direction === 'incoming'
       ? `${base} bg-emerald-100 text-emerald-700`
       : `${base} bg-sky-100 text-sky-700`;
