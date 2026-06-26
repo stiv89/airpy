@@ -15,6 +15,11 @@ function parseOrigins(value) {
 
 const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGIN);
 const ALLOW_VERCEL = process.env.ALLOW_VERCEL !== 'false';
+const ALLOWED_DOMAINS = parseOrigins(process.env.ALLOWED_DOMAINS ?? 'viadrop.lat');
+
+function hostnameMatchesDomain(hostname, domain) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
 
 function isOriginAllowed(origin) {
   if (!origin) return true;
@@ -26,6 +31,7 @@ function isOriginAllowed(origin) {
     if (protocol !== 'http:' && protocol !== 'https:') return false;
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
     if (ALLOW_VERCEL && hostname.endsWith('.vercel.app')) return true;
+    if (ALLOWED_DOMAINS.some((domain) => hostnameMatchesDomain(hostname, domain))) return true;
   } catch {
     return false;
   }
