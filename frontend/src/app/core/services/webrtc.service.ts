@@ -14,7 +14,11 @@ import { TransferHistoryService } from './transfer-history.service';
 const CHUNK_SIZE = 65536;
 const CHANNEL_OPEN_TIMEOUT_MS = 30000;
 const TEXT_PREVIEW_MAX_BYTES = 512_000;
-const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
+];
 
 @Injectable({ providedIn: 'root' })
 export class WebRtcService {
@@ -24,6 +28,7 @@ export class WebRtcService {
 
   private readonly peerConnections = new Map<string, RTCPeerConnection>();
   private readonly peerNames = new Map<string, string>();
+  private readonly iceCandidateQueues = new Map<string, RTCIceCandidateInit[]>();
   private initialized = false;
   private teardownHandlers: Array<() => void> = [];
 
@@ -101,14 +106,13 @@ export class WebRtcService {
     });
 
     try {
+      this.closePeerConnection(targetPeerId);
       const pc = this.getOrCreatePeerConnection(targetPeerId, true);
       const channel = pc.createDataChannel('file-transfer', { ordered: true });
 
-      if (pc.signalingState === 'stable' && !pc.localDescription) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        this.socket.sendOffer(targetPeerId, offer);
-      }
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      this.socket.sendOffer(targetPeerId, offer);
 
       await this.bindOutgoingChannel(channel, file);
       const transfer = this.activeTransfer();
@@ -194,8 +198,10 @@ export class WebRtcService {
   ): Promise<void> {
     try {
       this.peerNames.set(fromId, fromName);
+      this.closePeerConnection(fromId);
       const pc = this.getOrCreatePeerConnection(fromId, false);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      await this.flushIceCandidates(fromId, pc);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       this.socket.sendAnswer(fromId, answer);
@@ -210,9 +216,17 @@ export class WebRtcService {
       return;
     }
     try {
+      if (pc.signalingState !== 'have-local-offer') {
+        return;
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      await this.flushIceCandidates(fromId, pc);
     } catch {
-      this.setTransferError(new Error('Error al negociar la conexión P2P'));
+      this.setTransferError(
+        new Error(
+          'Error al negociar la conexión P2P. Prueba en la misma red WiFi o vuelve a enviar el archivo.',
+        ),
+      );
     }
   }
 
@@ -221,10 +235,31 @@ export class WebRtcService {
     if (!pc || !candidate) {
       return;
     }
+
+    if (!pc.remoteDescription) {
+      const queue = this.iceCandidateQueues.get(fromId) ?? [];
+      queue.push(candidate);
+      this.iceCandidateQueues.set(fromId, queue);
+      return;
+    }
+
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch {
       // ICE candidates can arrive late; safe to ignore
+    }
+  }
+
+  private async flushIceCandidates(peerId: string, pc: RTCPeerConnection): Promise<void> {
+    const queued = this.iceCandidateQueues.get(peerId) ?? [];
+    this.iceCandidateQueues.delete(peerId);
+
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch {
+        // ignore stale candidates
+      }
     }
   }
 
@@ -254,7 +289,11 @@ export class WebRtcService {
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'failed') {
         this.handlePeerDisconnected(peerId);
-        this.setTransferError(new Error('No se pudo establecer la conexión P2P'));
+        this.setTransferError(
+          new Error(
+            'No se pudo conectar P2P. Usa la misma red WiFi en ambos dispositivos e inténtalo de nuevo.',
+          ),
+        );
       }
       if (pc.connectionState === 'closed') {
         this.closePeerConnection(peerId);
@@ -521,5 +560,6 @@ export class WebRtcService {
       this.peerConnections.delete(peerId);
     }
     this.peerNames.delete(peerId);
+    this.iceCandidateQueues.delete(peerId);
   }
 }
