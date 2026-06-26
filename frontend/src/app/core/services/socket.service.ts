@@ -4,6 +4,7 @@ import { environment } from '../../../environments/environment';
 import { Peer } from '../models/peer.model';
 import { NotificationService } from './notification.service';
 import { ConnectivityService } from './connectivity.service';
+import { getDeviceId } from '../utils/device-id.util';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error' | 'offline';
 
@@ -83,7 +84,7 @@ export class SocketService {
     }
 
     this.socket = io(environment.signalingUrl, {
-      query: { displayName: this.lastDisplayName },
+      query: { displayName: this.lastDisplayName, deviceId: getDeviceId() },
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,

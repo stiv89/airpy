@@ -73,7 +73,7 @@ const io = new Server(httpServer, {
   pingInterval: 25000,
 });
 
-/** @type {Map<string, Map<string, { id: string; displayName: string }>>} */
+/** @type {Map<string, Map<string, { id: string; displayName: string; deviceId: string }>>} */
 const rooms = new Map();
 
 function resolveClientIp(socket) {
@@ -87,7 +87,21 @@ function resolveClientIp(socket) {
 function getRoomPeers(roomId) {
   const room = rooms.get(roomId);
   if (!room) return [];
-  return Array.from(room.values());
+  return Array.from(room.values()).map(({ id, displayName }) => ({ id, displayName }));
+}
+
+function removePeer(roomId, socketId, deviceId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  const entry = room.get(deviceId);
+  if (entry?.id === socketId) {
+    room.delete(deviceId);
+  }
+
+  if (room.size === 0) {
+    rooms.delete(roomId);
+  }
 }
 
 function broadcastPeers(roomId) {
@@ -98,14 +112,26 @@ function broadcastPeers(roomId) {
 io.on('connection', (socket) => {
   const roomId = resolveClientIp(socket);
   const displayName = socket.handshake.query.displayName?.toString().trim() || 'Anónimo';
+  const deviceId = socket.handshake.query.deviceId?.toString().trim() || socket.id;
 
   socket.data.roomId = roomId;
   socket.data.displayName = displayName;
+  socket.data.deviceId = deviceId;
 
   if (!rooms.has(roomId)) {
     rooms.set(roomId, new Map());
   }
-  rooms.get(roomId).set(socket.id, { id: socket.id, displayName });
+
+  const room = rooms.get(roomId);
+  const previous = room.get(deviceId);
+  const isNewDevice = !previous;
+
+  if (previous && previous.id !== socket.id) {
+    const oldSocket = io.sockets.sockets.get(previous.id);
+    oldSocket?.disconnect(true);
+  }
+
+  room.set(deviceId, { id: socket.id, displayName, deviceId });
 
   socket.join(roomId);
 
@@ -115,7 +141,10 @@ io.on('connection', (socket) => {
     peers: getRoomPeers(roomId).filter((p) => p.id !== socket.id),
   });
 
-  socket.to(roomId).emit('peer-joined', { id: socket.id, displayName });
+  if (isNewDevice) {
+    socket.to(roomId).emit('peer-joined', { id: socket.id, displayName });
+  }
+
   broadcastPeers(roomId);
 
   socket.on('webrtc-offer', ({ targetId, offer }) => {
@@ -141,14 +170,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const { roomId: rid } = socket.data;
-    const room = rooms.get(rid);
-    if (room) {
-      room.delete(socket.id);
-      if (room.size === 0) {
-        rooms.delete(rid);
-      }
-    }
+    const { roomId: rid, deviceId } = socket.data;
+    removePeer(rid, socket.id, deviceId);
     socket.to(rid).emit('peer-left', { id: socket.id });
     broadcastPeers(rid);
   });
